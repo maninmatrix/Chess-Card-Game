@@ -1,1 +1,105 @@
+#include<iostream>
+#include<string.h>
+using namespace std;
 
+class String {
+public:
+    //构造函数
+
+    String(const char* pStr = "") {
+        //cout << "String value:" << pStr << endl;
+        if (NULL == pStr) {
+            pstr = new char[1];
+            *pstr = '\0';
+        } else {
+            pstr = new char[strlen(pStr) + 1];
+            strcpy(pstr, pStr);
+        }
+
+    }
+    //拷贝构造函数
+
+    String(const String &s)
+    : pstr(NULL) {
+        String temp(s.pstr);
+        std::swap(pstr, temp.pstr);
+
+    }
+
+
+    //重载=
+
+    String& operator=(const String& s) {
+        if (this != &s) {
+            String temp(s.pstr);
+            swap(pstr, temp.pstr);
+        }
+        return *this;
+    }
+    //重载+=
+
+    String &operator+=(const String &other) {
+        int length = strlen(this->pstr) + strlen(other.pstr) + 1;
+        char *str = new char[length];
+        strcpy(str, this->pstr);
+        strcat(str, other.pstr);
+
+        delete[] pstr;
+        pstr = new char[length];
+        strcpy(pstr, str);
+        return *this;
+    }
+    //析构函数
+
+    ~String() {
+        if (NULL != pstr) {
+            delete[] pstr;
+            pstr = NULL;
+        }
+    }
+    //
+    friend ostream& operator<<(ostream &out, const String &s);
+    friend String operator+(const String &s1, const String &s2);
+private:
+    char *pstr;
+};
+//输出函数
+
+ostream &operator<<(ostream &out, const String &s) {
+    out << s.pstr;
+    return out;
+}
+//+运算符重载函数，定义为友元函数，返回一个临时对象。
+
+String operator+(const String &s1, const String &s2) {
+    String tmp;
+    int length = strlen(s1.pstr) + strlen(s2.pstr) + 1;
+    tmp.pstr = new char[length];
+    strcpy(tmp.pstr, s1.pstr);
+    strcat(tmp.pstr, s2.pstr);
+    return tmp;
+}
+
+int main() {
+
+    String mstr("hello world");
+
+    String mstr2(mstr);
+    cout << mstr2 << endl;
+
+    String mstr3;
+    mstr3 = mstr;
+    cout << mstr3 << endl;
+
+    String mstr4("hello ");
+    String mstr5("world");
+    String mstr6 = mstr4 + mstr5;
+    cout << mstr6 << endl;
+
+    String mstr7("hello ");
+    String mstr8("world");
+    mstr7 += mstr8;
+    cout << mstr7 << endl;
+
+    return 0;
+}
