@@ -1,0 +1,19 @@
+
+下面的程序可以从0....n-1中随机等概率的输出m个不重复的数。这里我们假设n远大于m
+
+knuth(int n, int m)
+{ 
+    srand((unsigned int)time(0)); 
+    for (int i = 0; i < n; i++) { 
+        if ( ) { 
+            cout << i << endl;
+            ( );
+        }
+     }
+}
+A.rand()%(n-i)<=m   m--
+B.rand()%(n-i)<m   m--
+C.rand()%(n-i)>=m   m++
+D.rand()%(n-i)>m   m++
+
+answer:B
