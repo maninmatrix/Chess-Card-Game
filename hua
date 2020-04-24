@@ -1,0 +1,364 @@
+#include <iostream>
+#include<vector>
+#include <algorithm>
+#include <cstring>
+#include <stdio.h>
+#include <time.h>
+#include <unistd.h>
+#include <map>
+using namespace std;
+#define _HANDCARD_NUM_ 52
+// 牌型，方块(0) < 梅花(1) < 红心(2) < 黑桃(3)
+// 牌值, 1 - 13,
+// 低4位存储牌值，高4位存储牌型
+enum CARDTYPE {
+    SINGLE = 1,//单张 1
+    DUIZI,//对子 2
+    SHUNZI,//顺子 3
+    TONGHUA,//同花 4
+    TONGHUASHUN,//同花顺 5
+    BAOZI,//豹子 6
+    BAOZI_11,//J豹子 7
+    BAOZI_12,//Q豹子 8
+    BAOZI_13,//K豹子 9
+    BAOZI_1,//A豹子 10
+};
+int GetCardType(const char& mCard)
+{
+    return (mCard >> 4) & 0x0F;
+}
+int GetCardValue(const char& mCard)
+{
+    return mCard & 0x0F;
+}
+
+void SortCardByValue(const vector<char>& mCard, char Card[3])
+{
+    vector<char> mTmpCard = mCard;
+    sort(mTmpCard.begin(), mTmpCard.end(), [](char cCard1, char cCard2){return GetCardValue(cCard1) <= GetCardValue(cCard2);});
+    
+    for(int i = 0; i < mTmpCard.size() && i < 3;i++)
+    {
+        Card[i] = mTmpCard[i];
+    }
+}
+
+bool B_ValueSame(const char Card[3])
+{
+    if(GetCardValue(Card[0])== GetCardValue(Card[1]) && GetCardValue(Card[1])== GetCardValue(Card[2]))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+bool B_TypeSame(const char Card[3])
+{
+    if(GetCardType(Card[0]) == GetCardType(Card[1]) && GetCardType(Card[1]) == GetCardType(Card[2]))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+bool B_Value_InSeries(const char Card[3])
+{
+    //ע�⣬���Ѿ�������ֵ����������
+    //printf("B_Value_InSeries:%0x-%0x-%0x\n", Card[0], Card[1], Card[2]);
+    int i = GetCardValue(Card[2]);
+    int k = GetCardValue(Card[1]); 
+    int l = GetCardValue(Card[0]);
+    if((i - k == 1) && (k - l == 1))
+    {
+        return true;
+    }
+    else
+    {
+        if(l == 1 && k == 12 && i == 13)
+        {
+             return true;
+        }
+        return false;
+    }
+    
+}
+
+bool Jugde_BAOZi_Type(const char Card[3], CARDTYPE& myType)
+{
+    if(B_ValueSame(Card))
+    {
+       // printf("Jugde_BAOZi_Type Value %d\n", GetCardValue(Card[0]));
+        if(GetCardValue(Card[0]) == 11)
+        {
+            myType =  BAOZI_11;
+            // printf("BAOZI_11\n");
+        }
+        else if(GetCardValue(Card[0]) == 12)
+        {
+            myType =  BAOZI_12;
+             //printf("BAOZI_12\n");
+        }
+        else if(GetCardValue(Card[0]) == 13)
+        {
+            myType =  BAOZI_13;
+             //printf("BAOZI_13\n");
+        }
+        else if(GetCardValue(Card[0]) == 1)
+        {
+            myType =  BAOZI_1;
+            // printf("BAOZI_1\n");
+        }
+        else
+        {
+            myType = BAOZI;
+            //printf("BAOZI\n");
+        }
+        return true;
+    }
+    else
+    {
+        myType =  SINGLE;
+        return false;
+    }
+}
+bool Judege_TongHuaShun(const char Card[3], CARDTYPE& myType)
+{
+    if(B_TypeSame(Card))
+    {
+        // printf("Same type %d\n", GetCardType(Card[0]));
+        if(B_Value_InSeries(Card))
+        {
+            myType = TONGHUASHUN;
+            return true;
+        }
+    }
+    myType =  SINGLE;
+    return false;
+}
+bool Judege_TongHua(const char Card[3], CARDTYPE& myType)
+{
+    if(B_TypeSame(Card))
+    {
+       // printf("not Same type %d\n", GetCardType(Card[0]));
+       
+       
+            myType = TONGHUA;
+            return true;
+        
+        
+    }
+    myType =  SINGLE;
+    return false;
+}
+bool Judege_ShunZi(const char Card[3], CARDTYPE& myType)
+{
+    if(!B_TypeSame(Card))
+    {
+         //printf("Same type %d\n", GetCardType(Card[0]));
+       
+         if(B_Value_InSeries(Card))
+        {
+            myType = SHUNZI;
+            return true;
+        }
+      
+        
+    }
+    myType =  SINGLE;
+    return false;
+}
+bool Judege_DuiZi(const char Card[3], CARDTYPE& myType)
+{
+    if(GetCardValue(Card[0])== GetCardValue(Card[1]) ||  GetCardValue(Card[1])== GetCardValue(Card[2]))
+    {
+        
+       
+        myType = DUIZI;
+        return true;
+        
+    }
+    myType =  SINGLE;
+    return false;
+}
+
+
+
+CARDTYPE GetCardType(const vector<char>& mCard)
+{
+    vector<char> mTmpCard = mCard;
+    CARDTYPE myType = SINGLE;
+    char Card[3] = {0};
+    SortCardByValue(mTmpCard, Card);
+    if(Jugde_BAOZi_Type(Card, myType))
+    {
+      //  printf("Get BaoZi Type %d\n", myType);
+        return  myType;
+    }
+    else if(Judege_TongHuaShun(Card, myType))
+    {
+      //  printf("Get TongHuaShun Type %d\n", myType);
+        return  myType;
+    }
+    else if(Judege_TongHua(Card, myType))
+    {
+        // printf("Get TongHua Type %d\n", myType);
+        return  myType;
+    }
+    else if(Judege_ShunZi(Card, myType))
+    {
+        // printf("Get ShunZi Type %d\n", myType);
+        return  myType;
+    }
+    else if(Judege_DuiZi(Card, myType))
+    {
+        // printf("Get DuiZi Type %d\n", myType);
+        return  myType;
+    }
+    else
+    { 
+       
+         myType = SINGLE;
+         // printf("Get danzhang Type %d\n", myType);
+        return  myType;
+    }
+   
+    
+}
+char MakeCardValue(char cCardType, char cCardPoint) {
+    return ((cCardType << 4) | cCardPoint);
+}
+void ShuffCard(vector<char> &vecCard) {
+    int iCardNum = vecCard.size();
+    srand(time(NULL));
+    //srand(StartTime);
+    // 洗牌 完全打乱玩家手中的牌
+    for (int i = 0; i < iCardNum; ++i) {
+        int tempRandNum = rand() % iCardNum;
+        if (tempRandNum != i) {
+            char tempCard = vecCard[i];
+            vecCard[i] = vecCard[tempRandNum];
+            vecCard[tempRandNum] = tempCard;
+        }
+    }
+}
+void GetCardByType(const CARDTYPE& cardType, vector<char>& m_vResult)
+{
+    vector<char> tempAllCards;
+    for (int i = 0; i < 52; ++i) {
+        char cCard = MakeCardValue((char) ((i / 13) % 4), (char) (i % 13 + 1));
+        tempAllCards.push_back(cCard);
+    }
+    ShuffCard(tempAllCards);
+    int iCount = 0;
+    vector<vector<char> > mAllCard;
+    ///////
+    for(int i = 0; i < tempAllCards.size();i++)
+    {
+        int mFirst = tempAllCards[i];
+        for(int j= i+1;j < tempAllCards.size();j++)
+        {
+            int mSecond = tempAllCards[j];
+            for(int k= j+1;k < tempAllCards.size();k++)
+            {
+                int mThird = tempAllCards[k];
+                vector<char> mResult;
+                mResult.push_back(mFirst);
+                mResult.push_back(mSecond);
+                mResult.push_back(mThird);
+               // printf("XXXXcard: %0x,%0x,%0x", mResult[0], mResult[1], mResult[2]);
+                mAllCard.push_back(mResult);
+            }
+            // printf("\n");
+            
+        }
+    }
+    //printf("all size %d, %d\n", mAllCard.size(), 52*51*50 / 6);
+    for(int i = 0; i < mAllCard.size();i++)
+    {
+        
+        vector<char> mResult = mAllCard[i];
+      //  printf("XXXXcard: %0x,%0x,%0x\n", mResult[0], mResult[1], mResult[2]);
+        int iType =  GetCardType(mResult);
+        if(iType == cardType)
+        {
+            m_vResult = mResult;
+            return;;
+            
+        }
+    }
+}
+void CheckCard()
+{
+      vector<char> tempAllCards;
+    for (int i = 0; i < 52; ++i) {
+        char cCard = MakeCardValue((char) ((i / 13) % 4), (char) (i % 13 + 1));
+        tempAllCards.push_back(cCard);
+    }
+    ShuffCard(tempAllCards);
+    int iCount = 0;
+    vector<vector<char> > mAllCard;
+    ///////
+    for(int i = 0; i < tempAllCards.size();i++)
+    {
+        int mFirst = tempAllCards[i];
+        for(int j= i+1;j < tempAllCards.size();j++)
+        {
+            int mSecond = tempAllCards[j];
+            for(int k= j+1;k < tempAllCards.size();k++)
+            {
+                int mThird = tempAllCards[k];
+                vector<char> mResult;
+                mResult.push_back(mFirst);
+                mResult.push_back(mSecond);
+                mResult.push_back(mThird);
+               // printf("XXXXcard: %0x,%0x,%0x", mResult[0], mResult[1], mResult[2]);
+                mAllCard.push_back(mResult);
+            }
+            // printf("\n");
+            
+        }
+    }
+    //printf("all size %d, %d\n", mAllCard.size(), 52*51*50 / 6);
+    int a[12] = {0};
+    for(int i = 0; i < mAllCard.size();i++)
+    {
+        
+        vector<char> mResult = mAllCard[i];
+      //  printf("XXXXcard: %0x,%0x,%0x\n", mResult[0], mResult[1], mResult[2]);
+        int iType =  GetCardType(mResult);
+        
+        
+       // sleep(1);
+       a[iType]++;
+    }
+    
+    for(int i = 1; i < 11;i++)
+    {
+        printf("index %d, value %d\n", i, a[i]);
+    }
+}
+int main()
+{  
+ // CheckCard();
+    vector<char> m_vResult;
+    //SINGLE = 1,//单张 1
+    //DUIZI,//对子 2
+   // SHUNZI,//顺子 3
+   // TONGHUA,//同花 4
+   // TONGHUASHUN,//同花顺 5
+   // BAOZI,//豹子 6
+   // BAOZI_11,//J豹子 7
+   // BAOZI_12,//Q豹子 8
+   // BAOZI_13,//K豹子 9
+   // BAOZI_1,//A豹子 10
+    GetCardByType(BAOZI_13, m_vResult);
+    
+     for(int i = 0; i < 3 && i < m_vResult.size();i++)
+    {
+        printf("value: %0x\n", m_vResult[i]);
+    }
+}
