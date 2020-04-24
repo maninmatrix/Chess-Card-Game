@@ -1,0 +1,401 @@
+#include <iostream>
+#include<vector>
+#include <algorithm>
+#include <cstring>
+#include <stdio.h>
+#include <time.h>
+#include <unistd.h>
+using namespace std;
+#define _HANDCARD_NUM_ 52
+static int StartTime = time(NULL);
+enum CARDTYPE {
+    POINT_0,
+    POINT_1,
+    POINT_2,
+    POINT_3,
+    POINT_4,
+    POINT_5,
+    POINT_6,
+    POINT_7,
+    POINT_8,
+    POINT_9,
+    SANGONG,
+    BOMB
+};
+void GetCardName(char cCardValue)
+{
+    char cCardType  = ((cCardValue >> 4) & 0x0F);
+    char cCardPoint = cCardValue & 0x0F;
+    if(cCardType == 0 )
+    {
+        printf("DIAMOND %d\n",cCardPoint );
+    }
+    else if(cCardType == 1)
+    {
+         printf("CLUB %d\n",cCardPoint );
+    }
+     else if(cCardType == 2)
+    {
+         printf("HEARTS %d\n",cCardPoint );
+    }
+     else if(cCardType == 3)
+    {
+         printf("SPADE %d\n",cCardPoint );
+    }
+}
+char GetCardPoint_Static(char cCardVal) {
+    return (cCardVal & 0x0F);
+}
+
+char MakeCardValue(char cCardType, char cCardPoint) {
+    return ((cCardType << 4) | cCardPoint);
+}
+
+void ShuffCard(vector<char> &vecCard) {
+    int iCardNum = vecCard.size();
+    //srand(time(NULL));
+    srand(StartTime);
+    // 洗牌 完全打乱玩家手中的牌
+    for (int i = 0; i < iCardNum; ++i) {
+        int tempRandNum = rand() % iCardNum;
+        if (tempRandNum != i) {
+            char tempCard = vecCard[i];
+            vecCard[i] = vecCard[tempRandNum];
+            vecCard[tempRandNum] = tempCard;
+        }
+    }
+}
+
+void DeleteCardBetweenTwoPoint(vector<char>& vecCard, char cBeginPoint, char cEndPoint) {
+    vector< char>::iterator iter = vecCard.begin();
+
+    for (iter = vecCard.begin(); iter != vecCard.end();) {
+        if (GetCardPoint_Static(*iter) >= cBeginPoint &&
+                GetCardPoint_Static(*iter) <= cEndPoint)
+            iter = vecCard.erase(iter);
+        else
+            iter++;
+    }
+}
+
+void GetRandCard(vector<char>& AllCards) {
+    vector<char> tempAllCards;
+    for (int i = 0; i < 52; ++i) {
+        char cCard = MakeCardValue((char) ((i / 13) % 4), (char) (i % 13 + 1));
+        tempAllCards.push_back(cCard);
+    }
+    ShuffCard(tempAllCards);
+    AllCards = tempAllCards;
+}
+
+int GetHuaPaiCnt(vector<char> mresult) {
+    int iHuaPaiCnt = 0;
+
+    for (int i = 0; i < mresult.size(); ++i) {
+        if (GetCardPoint_Static(mresult[i]) > 10 && GetCardPoint_Static(mresult[i]) < 14) {
+            iHuaPaiCnt++;
+        }
+    }
+
+    return iHuaPaiCnt;
+}
+
+bool IsHuaCard(char cCard) {
+    if (GetCardPoint_Static(cCard) <= 13 && GetCardPoint_Static(cCard) >= 11)
+        return true;
+
+    return false;
+}
+
+CARDTYPE GetPlayCardResult(vector<char> mresult) {
+    //printf("mresult size %d\n", mresult.size());
+    for (auto i : mresult) {
+        //printf("i value %d\n", i);
+    }
+    char m_tmpCard[_HANDCARD_NUM_];
+    int ReturnCardValue[4];
+    int tempCardValue[14];
+    memset(ReturnCardValue, 0, sizeof (ReturnCardValue));
+    memset(tempCardValue, 0, sizeof (tempCardValue));
+   
+    for (int i = 0; i < mresult.size(); ++i) {
+        ReturnCardValue[i] = GetCardPoint_Static(mresult[i]);
+        tempCardValue[ReturnCardValue[i]]++;
+    }
+   
+    for (int i = 0; i < 4; ++i) {
+        // 炸弹
+        if (3 == tempCardValue[ReturnCardValue[i]]) {
+            return BOMB;
+        }
+    }
+   
+    // 三公
+    if (3 == GetHuaPaiCnt(mresult)) {
+        return SANGONG;
+    } else {
+
+        int iCount = 0;
+        for (int j = 0; j < mresult.size(); ++j) {
+            if (IsHuaCard(mresult[j])) {
+                m_tmpCard[j] = 10;
+            }
+            else {
+                m_tmpCard[j] = GetCardPoint_Static(mresult[j]);
+            }
+            iCount += m_tmpCard[j];
+        }
+        iCount = iCount % 10;
+       // printf("iCount: %d\n", iCount);
+        switch (iCount) {
+            case 0:
+                return POINT_0;
+            case 1:
+                return POINT_1;
+            case 2:
+                return POINT_2;
+            case 3:
+                return POINT_3;
+            case 4:
+                return POINT_4;
+            case 5:
+                return POINT_5;
+            case 6:
+                return POINT_6;
+            case 7:
+                return POINT_7;
+            case 8:
+                return POINT_8;
+            case 9:
+                return POINT_9;
+        }
+    }
+}
+
+void CheckWhichGiftCanBuy(const CARDTYPE& cardType, vector<char>& m_vResult) {
+    
+     //获取洗好的牌
+    vector<char> m_vcard;
+    GetRandCard(m_vcard);
+    
+    bool bSuccess = false;
+    vector<char>::iterator iter;
+    bool Bget = false;
+    if (cardType != SANGONG && cardType != BOMB) {
+        do {
+            vector<char> vTmpCard = m_vcard;
+            //ShuffCard(vTmpCard);
+            iter = vTmpCard.begin();
+            int cHuaCnt = 0; // 花牌(JQK)的个数
+
+            // 先从牌堆中取两张牌 
+            for (int i = 0; iter != vTmpCard.end(); ++i) {
+                if (i > 1) {
+                    break;
+                }
+
+                if (GetCardPoint_Static(*iter) >= 11 && GetCardPoint_Static(*iter) <= 13) {
+                    cHuaCnt++;
+                }
+                m_vResult.push_back(*iter);
+                iter = vTmpCard.erase(iter);
+            }
+            //cout << "cHuaCnt:" << cHuaCnt << endl;
+            //printf("vTmpCard size %d\n", vTmpCard.size());
+            if (cHuaCnt == 1) // 有一花牌
+            {
+                bool bFind = false;
+               
+                for (; iter != vTmpCard.end(); iter++) 
+                {
+                   // printf("11m_vResult size %d\n", m_vResult.size());
+                   
+                    m_vResult.push_back(*iter);
+          
+                   // printf("now card %d-%d-%d\n", m_vResult[0], m_vResult[1], m_vResult[2]);
+                    if (GetPlayCardResult(m_vResult) == cardType) 
+                    {
+                       // printf("bFind\n");
+                        bFind = true;
+                        bSuccess = true;
+                        Bget = true;
+                        break;
+                    }
+                    else
+                    {
+                        m_vResult.pop_back();
+                    }
+                }
+                if (bFind == false) 
+                {
+                    bSuccess = false;
+                }
+            }
+            else if (cHuaCnt == 2) // 有两花牌
+            {
+                bool bFind = false;
+                for (; iter != vTmpCard.end(); iter++) {
+                    m_vResult.push_back(*iter);
+                    if (GetPlayCardResult(m_vResult) == cardType) 
+                    {
+                        bFind = true;
+                        bSuccess = true;
+                        Bget = true;
+                        break;
+                    }
+                    else
+                    {
+                        m_vResult.pop_back();
+                    }
+                }
+                if (bFind == false) {
+                    bSuccess = false;
+                }
+            } 
+            else // 没有花牌
+            {
+                bool bFind = false;
+                for (; iter != vTmpCard.end(); iter++) {
+                    m_vResult.push_back(*iter);
+                    if (GetPlayCardResult(m_vResult) == cardType) {
+                        //printf("get right cardtype \n");
+                        bFind = true;
+                        bSuccess = true;
+                        Bget = true;
+                        break;
+                    }
+                    else
+                    {
+                        m_vResult.pop_back();
+                    }
+                }
+                if (bFind == false) {
+                    bSuccess = false;
+                }
+            }
+
+        } while (!bSuccess);
+    } else if (cardType == SANGONG) {
+        		do 
+        		{
+        			vector<char> vTmpCard = m_vcard;
+        			DeleteCardBetweenTwoPoint(vTmpCard, 1, 10);
+        			
+        			iter = vTmpCard.begin();
+        
+        			bool bJoker = false;			// 是否有王牌
+        
+        			// 先从牌堆中取两张牌 但是前两张不能出现两个王牌
+        			for (int i = 0; iter != vTmpCard.end(); ++i)
+        			{
+        				if (i > 1)
+        				{
+        					break;
+        				}
+        				
+        
+        				m_vResult.push_back(*iter);
+        				iter = vTmpCard.erase(iter);
+        			}
+        
+        			bool bFind = false;
+        			for(; iter != vTmpCard.end(); iter++)
+        			{
+        				 m_vResult.push_back(*iter);
+        				if (GetPlayCardResult(m_vResult) == cardType)
+        				{
+        					bFind = true;
+        					bSuccess = true;
+                                                 Bget = true;
+        					break;
+        				}
+                                         else
+                                        {
+                                            m_vResult.pop_back();
+                                        }
+        			}
+        			if (bFind == false)
+        			{
+        				bSuccess = false;
+        			}
+        		} while(!bSuccess);
+    } else if (cardType == BOMB) {
+        		do 
+        		{
+        			vector<char> vTmpCard = m_vcard;
+        			//ShuffCard(vTmpCard);
+        			iter = vTmpCard.begin();
+        			bool bGetSecondSuccess = false;		// 是否获取第二张牌成功
+        
+        			// 取第一张牌
+        			char TmpCard01 = GetCardPoint_Static(*iter);
+                                m_vResult.push_back(*iter);                             
+        			iter = vTmpCard.erase(iter);
+        
+        			// 取第二张和第三张牌
+        			for (; iter != vTmpCard.end(); iter++)
+        			{
+        				if (GetCardPoint_Static(*iter) == TmpCard01)
+        				{
+        					if (bGetSecondSuccess)
+        					{
+        						m_vResult.push_back(*iter);
+        						bSuccess = true;
+                                                          Bget = true;
+        						break;
+        					}
+        					m_vResult.push_back(*iter);
+        					iter = vTmpCard.erase(iter);
+        					bGetSecondSuccess = true;
+        				}
+        			}
+        		} while(!bSuccess);
+    }
+    if (Bget) {
+        if(m_vResult.size() != 3)
+        {
+            m_vResult.clear();
+             m_vResult.push_back(1);
+            m_vResult.push_back(2);
+            m_vResult.push_back(3);
+        }
+                
+        
+    }
+    else
+    {
+        m_vResult.clear();
+        m_vResult.push_back(1);
+        m_vResult.push_back(2);
+        m_vResult.push_back(3);
+        //return false;
+    }
+    
+};
+
+int main() {
+   
+    srand((unsigned)time(NULL));
+    unsigned int a = rand() % 8;
+    
+    //随机一个牌型
+    CARDTYPE iWantType = CARDTYPE(a);
+    //获取三张牌
+    vector<char> m_vResult;
+    for(int i = 0; i< 1;i++)
+    {
+        m_vResult.clear();
+        StartTime += 1;
+        //sleep(1);
+        CheckWhichGiftCanBuy(iWantType, m_vResult);
+        cout<<"----------------------------------get result success---------------------------"<<endl;
+       for (auto i : m_vResult) {
+            GetCardName(i);
+        }
+    
+    }
+    
+
+
+}
+
